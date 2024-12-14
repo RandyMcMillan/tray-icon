@@ -122,17 +122,9 @@ fn main() -> wry::Result<()> {
                     let first = words.next().unwrap();
                     let second = words.next().unwrap();
 
-                    //let [first_word, second] = utf8_string.split(' ').collect();
-                    //let [first_word, second] = utf8_string.collect();
-                    //let words: Vec<&str> = utf8_string.split(r" ").collect();
-                    //let [first, second] = words.as_slice()  else { return };
-
                     //println!("first={}", first);
                     println!("second={}", second);
 
-                    // http://localhost:CUSTOM_PORT/1111
-                    // 120:GET /1111 HTTP/1.1
-                    //println!("120:{}", utf8_string);
                     //buf.push(b'\n');
                 }
                 /*}*/
