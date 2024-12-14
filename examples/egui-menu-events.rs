@@ -84,7 +84,7 @@ fn wry() -> wry::Result<()> {
     // set a menu event handler that wakes up the event loop
     let proxy = event_loop.create_proxy();
     muda::MenuEvent::set_event_handler(Some(move |event| {
-        proxy.send_event(UserEvent::MenuEvent(event));
+        let _ = proxy.send_event(UserEvent::MenuEvent(event));
     }));
 
     let window = WindowBuilder::new()
@@ -330,7 +330,7 @@ fn wry() -> wry::Result<()> {
 
             Event::UserEvent(UserEvent::MenuEvent(event)) => {
                 if event.id == custom_i_1.id() {
-                    file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
+                    let _ = file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
                 }
                 println!("{event:?}");
             }
