@@ -3,8 +3,29 @@
 #[cfg(not(target_os = "linux"))]
 use std::{cell::RefCell, rc::Rc};
 
+use muda::{
+    accelerator::{Accelerator, Code, Modifiers},
+    dpi::Position,
+    AboutMetadata, CheckMenuItem, ContextMenu, IconMenuItem, Menu, MenuEvent, MenuItem,
+    PredefinedMenuItem, Submenu,
+};
+#[cfg(target_os = "macos")]
+use tao::platform::macos::WindowExtMacOS;
+#[cfg(target_os = "linux")]
+use tao::platform::unix::WindowExtUnix;
+#[cfg(target_os = "windows")]
+use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
+use tao::{
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoopBuilder},
+    window::{Window, WindowBuilder},
+};
+#[cfg(target_os = "linux")]
+use wry::WebViewBuilderExtUnix;
+use wry::{http::Request, WebViewBuilder};
+
 use eframe::egui;
-use tray_icon::{menu::Menu, menu::MenuEvent, TrayIconBuilder, TrayIconEvent};
+use tray_icon::{TrayIconBuilder, TrayIconEvent};
 
 fn main() -> Result<(), eframe::Error> {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
