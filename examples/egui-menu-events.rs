@@ -96,10 +96,10 @@ fn main() -> wry::Result<()> {
                     let bytes_read = sock.read(&mut buf).await.expect("failed to read request");
 
                     if bytes_read == 0 {
-                        println!("bytes_read = {}", bytes_read);
+                        //println!("99:>>>>>>>>-----> bytes_read = {}", bytes_read);
                         return;
                     }
-                    println!("bytes_read = {}", bytes_read);
+                    println!("102:>>>>>>>>-----> bytes_read = {}", bytes_read);
                     let mut new_buf = prepend(vec![0u8; 512], &buf);
 
                     new_buf.push(b'g'); //last element 32
@@ -117,7 +117,22 @@ fn main() -> wry::Result<()> {
                             String::from_utf8_lossy(non_utf8.as_bytes()).into_owned()
                         })
                         .unwrap();
-                    println!("{}", utf8_string);
+
+                    let mut words = utf8_string.split(' ');
+                    let first = words.next().unwrap();
+                    let second = words.next().unwrap();
+
+                    //let [first_word, second] = utf8_string.split(' ').collect();
+                    //let [first_word, second] = utf8_string.collect();
+                    //let words: Vec<&str> = utf8_string.split(r" ").collect();
+                    //let [first, second] = words.as_slice()  else { return };
+
+                    println!("first={}", first);
+                    println!("second={}", second);
+
+                    // http://localhost:CUSTOM_PORT/1111
+                    // 120:GET /1111 HTTP/1.1
+                    println!("120:{}", utf8_string);
                     //buf.push(b'\n');
                 }
                 /*}*/
@@ -130,14 +145,16 @@ fn main() -> wry::Result<()> {
     // incoming TcpStreams and are sent to the sender half of the channel.
     tray_runtime.block_on(async move {
         println!("acceptor_runtime is started");
-        let listener = match TcpListener::bind("127.0.0.1:8080").await {
-            //8080
+        let listener = match TcpListener::bind(format!("127.0.0.1:{}", CUSTOM_PORT)).await {
             Ok(l) => l,
             Err(e) => panic!("error binding TCP listener: {}", e),
         };
 
         loop {
-            println!("acceptor_runtime loop:listener:8080");
+            println!(
+                "{}",
+                format!("acceptor_runtime loop:listener:{}", CUSTOM_PORT)
+            );
             let sock = match accept_conn(&listener).await {
                 Ok(stream) => stream,
                 Err(e) => panic!("error reading TCP stream: {}", e),
@@ -163,7 +180,7 @@ async fn accept_conn(listener: &TcpListener) -> Result<TcpStream, Box<dyn Error>
     //}
 }
 
-fn wry() -> wry::Result<()> {
+async fn wry() -> wry::Result<()> {
     let mut event_loop_builder = EventLoopBuilder::<UserEvent>::with_user_event();
 
     let menu_bar = Menu::new();
@@ -442,7 +459,7 @@ fn wry() -> wry::Result<()> {
     })
 }
 
-fn tray() -> Result<(), eframe::Error> {
+async fn tray() -> Result<(), eframe::Error> {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
     let icon = tray_icon_load_icon(std::path::Path::new(path));
 
