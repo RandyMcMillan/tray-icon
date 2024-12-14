@@ -35,6 +35,8 @@ use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 
+use log::info;
+
 const CUSTOM_PORT: usize = 8000;
 
 enum UserEvent {
@@ -50,117 +52,6 @@ where
     tmp
 }
 
-async fn service() -> wry::Result<()> {
-    let wry_runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(8)
-        .thread_name("wry-pool")
-        .enable_all()
-        .build()?;
-
-    // Create another tokio runtime whose job is only to write the response bytes to the outgoing TCP message.
-    let tray_runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(2)
-        .thread_name("tray-pool")
-        .enable_all()
-        .build()?;
-
-    // this channel is used to pass the TcpStream from acceptor_runtime task to
-    // to echo_runtime task where the request handling is done.
-    let (tx, mut rx) = mpsc::channel::<TcpStream>(CUSTOM_PORT.into());
-
-    // The receiver part of the channel is moved inside a echo_runtime task.
-    // This task simply writes the echo response to the TcpStreams coming through the
-    // channel receiver.
-    wry_runtime.spawn(async move {
-        //println!("echo_runtime.spawn");
-        while let Some(mut sock) = rx.recv().await {
-            //println!("rx.recv().await");
-            //prepended bytes are lost
-            //103, 110, 111, 115, 116, 114
-            let mut buf = prepend(vec![0u8; 512], &[b'g', b'n', b'o', b's', b't', b'r']);
-            //println!("pre:buf.push:\n{:?}", &buf);
-            //gnostr bytes
-            //114, 116, 115, 111, 110, 103
-            buf.push(b'r'); //last element 103
-            buf.push(b't'); //last element 110
-            buf.push(b's'); //last element 111
-            buf.push(b'o'); //last element 115
-            buf.push(b'n'); //last element 116
-            buf.push(b'g'); //last element 114
-                            //println!("post:buf.push:\n{:?}", &buf);
-
-            tokio::spawn(async move {
-                /*loop {*/
-                //println!("pre:\n{:?}", &buf);
-                loop {
-                    let bytes_read = sock.read(&mut buf).await.expect("failed to read request");
-
-                    if bytes_read == 0 {
-                        //println!("99:>>>>>>>>-----> bytes_read = {}", bytes_read);
-                        return;
-                    }
-                    //println!("102:>>>>>>>>-----> bytes_read = {}", bytes_read);
-                    let mut new_buf = prepend(vec![0u8; 512], &buf);
-
-                    new_buf.push(b'g'); //last element 32
-                    new_buf.push(b'n'); //last element 32
-                    new_buf.push(b'o'); //last element 32
-                    new_buf.push(b's'); //last element 32
-                    new_buf.push(b't'); //last element 32
-                    new_buf.push(b'r'); //last element 32
-                    sock.write_all(&new_buf[0..bytes_read + 3])
-                        .await
-                        .expect("failed to write response");
-                    //println!("post:\n{:?}", new_buf);
-                    let utf8_string = String::from_utf8(new_buf)
-                        .map_err(|non_utf8| {
-                            String::from_utf8_lossy(non_utf8.as_bytes()).into_owned()
-                        })
-                        .unwrap();
-
-                    let mut words = utf8_string.split(' ');
-                    let first = words.next().unwrap();
-                    let second = words.next().unwrap();
-
-                    //println!("first={}", first);
-                    println!("second={}", second);
-
-                    //buf.push(b'\n');
-                }
-                /*}*/
-            });
-        }
-    });
-
-    // acceptor_runtime task is run in a blocking manner, so that our server
-    // starts accepting new TCP connections. This task just accepts the
-    // incoming TcpStreams and are sent to the sender half of the channel.
-    tray_runtime.block_on(async move {
-        //println!("acceptor_runtime is started");
-        let listener = match TcpListener::bind(format!("127.0.0.1:{}", CUSTOM_PORT)).await {
-            Ok(l) => l,
-            Err(e) => panic!("error binding TCP listener: {}", e),
-        };
-
-        loop {
-            //println!(
-            //    "{}",
-            //    format!("acceptor_runtime loop:listener:{}", CUSTOM_PORT)
-            //);
-            let sock = match accept_conn(&listener).await {
-                Ok(stream) => stream,
-                Err(e) => panic!("error reading TCP stream: {}", e),
-            };
-            let _ = tx.send(sock).await;
-        }
-    });
-
-    Ok(())
-
-    //wry()
-    //tray()?;
-}
-
 async fn accept_conn(listener: &TcpListener) -> Result<TcpStream, Box<dyn Error>> {
     //loop {
     /*return*/
@@ -174,8 +65,7 @@ async fn accept_conn(listener: &TcpListener) -> Result<TcpStream, Box<dyn Error>
 
 #[tokio::main]
 async fn main() -> wry::Result<()> {
-
-use log::*;
+    use log::*;
     // Set environment for logging configuration
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info,myapp=debug");
@@ -425,6 +315,118 @@ use log::*;
         }
     };
 
+    async fn service() -> wry::Result<()> {
+        info!("service");
+        let wry_runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(8)
+            .thread_name("wry-pool")
+            .enable_all()
+            .build()?;
+
+        // Create another tokio runtime whose job is only to write the response bytes to the outgoing TCP message.
+        let tray_runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .thread_name("tray-pool")
+            .enable_all()
+            .build()?;
+
+        // this channel is used to pass the TcpStream from acceptor_runtime task to
+        // to echo_runtime task where the request handling is done.
+        let (tx, mut rx) = mpsc::channel::<TcpStream>(CUSTOM_PORT.into());
+
+        // The receiver part of the channel is moved inside a echo_runtime task.
+        // This task simply writes the echo response to the TcpStreams coming through the
+        // channel receiver.
+        wry_runtime.spawn(async move {
+            //println!("echo_runtime.spawn");
+            while let Some(mut sock) = rx.recv().await {
+                //println!("rx.recv().await");
+                //prepended bytes are lost
+                //103, 110, 111, 115, 116, 114
+                let mut buf = prepend(vec![0u8; 512], &[b'g', b'n', b'o', b's', b't', b'r']);
+                //println!("pre:buf.push:\n{:?}", &buf);
+                //gnostr bytes
+                //114, 116, 115, 111, 110, 103
+                buf.push(b'r'); //last element 103
+                buf.push(b't'); //last element 110
+                buf.push(b's'); //last element 111
+                buf.push(b'o'); //last element 115
+                buf.push(b'n'); //last element 116
+                buf.push(b'g'); //last element 114
+                                //println!("post:buf.push:\n{:?}", &buf);
+
+                tokio::spawn(async move {
+                    /*loop {*/
+                    //println!("pre:\n{:?}", &buf);
+                    loop {
+                        let bytes_read = sock.read(&mut buf).await.expect("failed to read request");
+
+                        if bytes_read == 0 {
+                            //println!("99:>>>>>>>>-----> bytes_read = {}", bytes_read);
+                            return;
+                        }
+                        //println!("102:>>>>>>>>-----> bytes_read = {}", bytes_read);
+                        let mut new_buf = prepend(vec![0u8; 512], &buf);
+
+                        new_buf.push(b'g'); //last element 32
+                        new_buf.push(b'n'); //last element 32
+                        new_buf.push(b'o'); //last element 32
+                        new_buf.push(b's'); //last element 32
+                        new_buf.push(b't'); //last element 32
+                        new_buf.push(b'r'); //last element 32
+                        sock.write_all(&new_buf[0..bytes_read + 3])
+                            .await
+                            .expect("failed to write response");
+                        //println!("post:\n{:?}", new_buf);
+                        let utf8_string = String::from_utf8(new_buf)
+                            .map_err(|non_utf8| {
+                                String::from_utf8_lossy(non_utf8.as_bytes()).into_owned()
+                            })
+                            .unwrap();
+
+                        let mut words = utf8_string.split(' ');
+                        let first = words.next().unwrap();
+                        let second = words.next().unwrap();
+
+                        //println!("first={}", first);
+                        println!("second={}", second);
+
+                        //buf.push(b'\n');
+                    }
+                    /*}*/
+                });
+            }
+        });
+
+        // acceptor_runtime task is run in a blocking manner, so that our server
+        // starts accepting new TCP connections. This task just accepts the
+        // incoming TcpStreams and are sent to the sender half of the channel.
+        tray_runtime.block_on(async move {
+            //println!("acceptor_runtime is started");
+            let listener = match TcpListener::bind(format!("127.0.0.1:{}", CUSTOM_PORT)).await {
+                Ok(l) => l,
+                Err(e) => panic!("error binding TCP listener: {}", e),
+            };
+
+            loop {
+                //println!(
+                //    "{}",
+                //    format!("acceptor_runtime loop:listener:{}", CUSTOM_PORT)
+                //);
+                let sock = match accept_conn(&listener).await {
+                    Ok(stream) => stream,
+                    Err(e) => panic!("error reading TCP stream: {}", e),
+                };
+                let _ = tx.send(sock).await;
+            }
+        });
+
+        Ok(())
+
+        //wry()
+        //tray()?;
+    }
+
     fn print_something() {
         println!("something");
         info!("something");
@@ -465,15 +467,21 @@ use log::*;
                     println!("first:{event:?}");
                     info!("first:{event:?}");
                     print_something();
-                    async {
+                    let _ = async {
                         println!("{event:?}");
-                        info!("{event:?}");
-                        print_something_async().await;
+                        info!("async:{event:?}");
+                        let _ = print_something_async().await;
                     };
                     println!("after:{event:?}");
                     info!("after:{event:?}");
                     let _ = file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
-                    let _ = service(); //.await;
+                    info!("service():before:{event:?}");
+                    let _ = async {
+                        let _ = service().await;
+                        let _ = tray().await;
+                        info!("service():after:{event:?}");
+                    };
+                    info!("service():after:after:{event:?}");
                 }
                 println!("{event:?}");
             }
