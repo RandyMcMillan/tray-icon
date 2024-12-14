@@ -50,7 +50,7 @@ where
     tmp
 }
 
-fn main() -> wry::Result<()> {
+async fn service() -> wry::Result<()> {
     let wry_runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(8)
         .thread_name("wry-pool")
@@ -172,7 +172,19 @@ async fn accept_conn(listener: &TcpListener) -> Result<TcpStream, Box<dyn Error>
     //}
 }
 
-async fn wry() -> wry::Result<()> {
+#[tokio::main]
+async fn main() -> wry::Result<()> {
+
+use log::*;
+    // Set environment for logging configuration
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info,myapp=debug");
+    }
+    // Start logging to console
+    env_logger::init();
+
+    info!("Prepare for adding");
+
     let mut event_loop_builder = EventLoopBuilder::<UserEvent>::with_user_event();
 
     let menu_bar = Menu::new();
@@ -413,6 +425,14 @@ async fn wry() -> wry::Result<()> {
         }
     };
 
+    fn print_something() {
+        println!("something");
+        info!("something");
+    }
+    async fn print_something_async() {
+        println!("something_async");
+        info!("something_async");
+    }
     fn create_webview(window: &Rc<Window>) -> WebViewBuilder<'_> {
         #[cfg(not(target_os = "linux"))]
         return WebViewBuilder::new(window);
@@ -442,7 +462,18 @@ async fn wry() -> wry::Result<()> {
 
             Event::UserEvent(UserEvent::MenuEvent(event)) => {
                 if event.id == custom_i_1.id() {
+                    println!("first:{event:?}");
+                    info!("first:{event:?}");
+                    print_something();
+                    async {
+                        println!("{event:?}");
+                        info!("{event:?}");
+                        print_something_async().await;
+                    };
+                    println!("after:{event:?}");
+                    info!("after:{event:?}");
                     let _ = file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
+                    let _ = service(); //.await;
                 }
                 println!("{event:?}");
             }
