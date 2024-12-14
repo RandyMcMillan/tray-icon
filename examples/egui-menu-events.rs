@@ -72,13 +72,13 @@ fn main() -> wry::Result<()> {
     // This task simply writes the echo response to the TcpStreams coming through the
     // channel receiver.
     wry_runtime.spawn(async move {
-        println!("echo_runtime.spawn");
+        //println!("echo_runtime.spawn");
         while let Some(mut sock) = rx.recv().await {
-            println!("rx.recv().await");
+            //println!("rx.recv().await");
             //prepended bytes are lost
             //103, 110, 111, 115, 116, 114
             let mut buf = prepend(vec![0u8; 512], &[b'g', b'n', b'o', b's', b't', b'r']);
-            println!("pre:buf.push:\n{:?}", &buf);
+            //println!("pre:buf.push:\n{:?}", &buf);
             //gnostr bytes
             //114, 116, 115, 111, 110, 103
             buf.push(b'r'); //last element 103
@@ -87,11 +87,11 @@ fn main() -> wry::Result<()> {
             buf.push(b'o'); //last element 115
             buf.push(b'n'); //last element 116
             buf.push(b'g'); //last element 114
-            println!("post:buf.push:\n{:?}", &buf);
+                            //println!("post:buf.push:\n{:?}", &buf);
 
             tokio::spawn(async move {
                 /*loop {*/
-                println!("pre:\n{:?}", &buf);
+                //println!("pre:\n{:?}", &buf);
                 loop {
                     let bytes_read = sock.read(&mut buf).await.expect("failed to read request");
 
@@ -99,7 +99,7 @@ fn main() -> wry::Result<()> {
                         //println!("99:>>>>>>>>-----> bytes_read = {}", bytes_read);
                         return;
                     }
-                    println!("102:>>>>>>>>-----> bytes_read = {}", bytes_read);
+                    //println!("102:>>>>>>>>-----> bytes_read = {}", bytes_read);
                     let mut new_buf = prepend(vec![0u8; 512], &buf);
 
                     new_buf.push(b'g'); //last element 32
@@ -111,7 +111,7 @@ fn main() -> wry::Result<()> {
                     sock.write_all(&new_buf[0..bytes_read + 3])
                         .await
                         .expect("failed to write response");
-                    println!("post:\n{:?}", new_buf);
+                    //println!("post:\n{:?}", new_buf);
                     let utf8_string = String::from_utf8(new_buf)
                         .map_err(|non_utf8| {
                             String::from_utf8_lossy(non_utf8.as_bytes()).into_owned()
@@ -127,12 +127,12 @@ fn main() -> wry::Result<()> {
                     //let words: Vec<&str> = utf8_string.split(r" ").collect();
                     //let [first, second] = words.as_slice()  else { return };
 
-                    println!("first={}", first);
+                    //println!("first={}", first);
                     println!("second={}", second);
 
                     // http://localhost:CUSTOM_PORT/1111
                     // 120:GET /1111 HTTP/1.1
-                    println!("120:{}", utf8_string);
+                    //println!("120:{}", utf8_string);
                     //buf.push(b'\n');
                 }
                 /*}*/
@@ -144,17 +144,17 @@ fn main() -> wry::Result<()> {
     // starts accepting new TCP connections. This task just accepts the
     // incoming TcpStreams and are sent to the sender half of the channel.
     tray_runtime.block_on(async move {
-        println!("acceptor_runtime is started");
+        //println!("acceptor_runtime is started");
         let listener = match TcpListener::bind(format!("127.0.0.1:{}", CUSTOM_PORT)).await {
             Ok(l) => l,
             Err(e) => panic!("error binding TCP listener: {}", e),
         };
 
         loop {
-            println!(
-                "{}",
-                format!("acceptor_runtime loop:listener:{}", CUSTOM_PORT)
-            );
+            //println!(
+            //    "{}",
+            //    format!("acceptor_runtime loop:listener:{}", CUSTOM_PORT)
+            //);
             let sock = match accept_conn(&listener).await {
                 Ok(stream) => stream,
                 Err(e) => panic!("error reading TCP stream: {}", e),
@@ -172,7 +172,7 @@ fn main() -> wry::Result<()> {
 async fn accept_conn(listener: &TcpListener) -> Result<TcpStream, Box<dyn Error>> {
     //loop {
     /*return*/
-    println!("accept_conn");
+    //println!("accept_conn");
     match listener.accept().await {
         Ok((sock, _)) => Ok(sock),
         Err(e) => panic!("error accepting connection: {}", e),
