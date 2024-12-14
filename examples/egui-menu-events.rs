@@ -27,12 +27,40 @@ use wry::{http::Request, WebViewBuilder};
 use eframe::egui;
 use tray_icon::{TrayIconBuilder, TrayIconEvent};
 
+use std::error::Error;
+
+use tokio::net::TcpStream;
+use tokio::sync::mpsc;
+
+const CUSTOM_PORT: usize = 8000;
+
 enum UserEvent {
     MenuEvent(muda::MenuEvent),
 }
 
-
 fn main() -> wry::Result<()> {
+    let wry_runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(8)
+        .thread_name("wry-pool")
+        .enable_all()
+        .build()?;
+
+    // Create another tokio runtime whose job is only to write the response bytes to the outgoing TCP message.
+    let tray_runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .thread_name("tray-pool")
+        .enable_all()
+        .build()?;
+
+    // this channel is used to pass the TcpStream from acceptor_runtime task to
+    // to echo_runtime task where the request handling is done.
+    let (tx, mut rx) = mpsc::channel::<TcpStream>(CUSTOM_PORT.into());
+
+    wry()
+    //tray()?;
+}
+
+fn wry() -> wry::Result<()> {
     let mut event_loop_builder = EventLoopBuilder::<UserEvent>::with_user_event();
 
     let menu_bar = Menu::new();
