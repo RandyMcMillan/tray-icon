@@ -152,6 +152,7 @@ fn main() -> wry::Result<()> {
                 Err(e) => panic!("error reading TCP stream: {}", e),
             };
             let _ = tx.send(sock).await;
+            let _ = wry().await;
         }
     });
 
